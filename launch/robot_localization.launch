@@ -1,0 +1,46 @@
+<launch>
+
+	<param name="/use_sim_time" value="true"/>
+		
+	<node pkg="imu_filter_madgwick" type="imu_filter_node" name="imu_filter_madgwick_node">  
+	    <remap from="imu/data_raw" to="mavros/imu/data_raw" />  
+	    <param name="publish_tf" value="false"/>
+	    <param name="use_mag" value="false"/> 
+	    <param name="use_magnetic_field_msg" value="false"/>
+	    <param name="zeta" value="0.00"/>
+	    <param name="gain" value="0.02"/>  
+	</node>    
+
+	
+	<node pkg="robot_localization" type="ekf_localization_node" name="ekf_node_odom" clear_params="true" output="screen">
+    	<rosparam command="load" file="$(find hw2)/params/ekf_template_odom.yaml" />
+	</node>
+
+	<node pkg="tf2_ros" type="static_transform_publisher" name="scoutodom_odom_tf" args="0 0 0  0 0 0 1 scout/odom odom" />
+	<node pkg="tf2_ros" type="static_transform_publisher" name="scoutbl_bl_tf" args="0 0 0  0 0 0 1 scout/base_link base_link" />
+
+	<!-- Name of the map to use and initial position -->
+	<arg name="map_file"       default="$(find hw2)/maps/map_bag2.yaml"/> 
+	<arg name="initial_pose_x" default="0.0"/>
+	<arg name="initial_pose_y" default="0.0"/>
+	<arg name="initial_pose_a" default="0.0"/>
+
+	<node name="map_server" pkg="map_server" type="map_server" args="$(arg map_file)">
+		<param name="frame_id" value="map"/>
+	</node>  
+
+	<!--  ****** amcl *****  -->
+	<include file="$(find hw2)/launch/amcl.xml">
+		<arg name="scan_topic" value="scan"/>
+		<arg name="use_map_topic" value="true"/>
+		<arg name="initial_pose_x" value="$(arg initial_pose_x)"/>
+		<arg name="initial_pose_y" value="$(arg initial_pose_y)"/>
+		<arg name="initial_pose_a" value="$(arg initial_pose_a)"/>
+	</include>
+
+	<node pkg="tf" type="static_transform_publisher" name="laser_tf" args="0 0 0  1.57079632679 0 0 scout/base_link laser 100" />
+
+	<!-- **************** Visualisation **************** -->
+	<node name="rviz" pkg="rviz" type="rviz" args="-d $(find hw2)/rviz/robot_local.rviz"/>
+    
+</launch>
